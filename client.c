@@ -3,9 +3,13 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-
+#include <arpa/inet.h>
+#include <unistd.h>
 #include <netinet/in.h>
-
+struct packet {
+	int length;
+	char bytes[1000];
+}
 int main(){
 	//Create the socket
 	//
@@ -17,10 +21,14 @@ int main(){
 	// give the address for the socket
 	struct sockaddr_in server_address;
 	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(9002);
+	server_address.sin_port = htons(8765);
 	server_address.sin_addr.s_addr = INADDR_ANY;
 
-	int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
+	for(int i =0;i<600;i++){
+		sendto()
+	}
+
+	// int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
 
 	//Check for error in the connection
 	if(connection_status == -1){
@@ -28,7 +36,9 @@ int main(){
 	}
 	// receive data from the server
 	char server_response[256];
-	recv(network_socket, &server_response,sizeof(server_response),0);
+	//TODO: Create a packet with low entropy data: all 0s
+	//TODO: Create packets with high entropy data: randome sequence of bits.
+	// recv(network_socket, &server_response,sizeof(server_response),0);
 
 	//print out the server's response
 	printf("The server successfully sent the data: %s\n", server_response);

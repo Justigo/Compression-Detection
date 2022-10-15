@@ -6,6 +6,10 @@
 
 #include <netinet/in.h>
 
+struct packet {
+	int length;
+	char bytes[256];
+}
 int main(){
 	
 	char server_message[256] = "balls";
