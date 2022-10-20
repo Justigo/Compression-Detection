@@ -19,7 +19,7 @@ int main(){
 	probing_socket = socket(AF_INET, SOCK_STREAM,0);
 
 	probing_address.sin_family = AF_INET;
-	probing_address.sin_family = htons(8080);
+	probing_address.sin_family = htons(40329);
 	probing_address.sin_addr.s_addr = INADDR_ANY;
 	
 	if(bind(probing_socket, (struct sockaddr*)&probing_address,sizeof(probing_address))<0){
