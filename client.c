@@ -11,7 +11,7 @@
 
 struct packet {
 	int length;
-	char bytes[1000];
+	char bytes[998];
 };
 
 int main(){
@@ -56,38 +56,43 @@ int main(){
 	client_address.sin_port = htons(9876);
 	client_address.sin_addr.s_addr = inet_addr("192.168.86.249");
 
-	int val = IP_PMTUDISC_DONT;
-	setsockopt(network_socket,IPPROTO_IP, IP_MTU_DISCOVER,&val,sizeof(val));
+	if(bind(network_socket,(struct sockaddr *)&client_address,sizeof(client_address))<0){
+		perror("error in binding");
+		return-1;
+	}
 
 	//initialize the packet train.
 	struct packet *low_train = (struct packet*)malloc(6000 * sizeof(struct packet));
 	struct packet *high_train = (struct packet*)malloc(6000 * sizeof(struct packet));
 
-	int randomData = open("rand", O_RDONLY);
-	unsigned char myRandomData[6000];
-	read(randomData,myRandomData,6000);
-	close(randomData);
-	for(int c = 0;c<6000;c++){
-		printf("%d\n",myRandomData[c]);
-	}
-
 
 	//initialized the train to be low entropy
 	for(int j = 0;j<6000;j++){
-		high_train[j].length = packet_length;
 		low_train[j].length = packet_length;
 		for (int k = 0;k<(packet_length-2);k++){
-			high_train[j].bytes[k] = myRandomData[k];
 			low_train[j].bytes[k] = 0;
 		}
 		id = j;
 		char conversion[50];
-		sprintf(conversion,"%0x",id);
+		
+		sprintf(conversion,"%d",id);
 		char* payload = (char *)malloc(strlen(low_train[j].bytes) + strlen(conversion)+1);
+		
 		strcpy(payload,conversion);
+		
 		strcat(payload,low_train[j].bytes);
 		strcpy(low_train[j].bytes,payload);
 		strcpy(low_train[j].bytes,conversion);
+	}
+	unsigned char myRandomData[1000];
+	for(int i =0;i<6000;i++){
+		unsigned int randomData = open("/dev/urandom", O_RDONLY);
+		read(randomData,myRandomData,1000);
+		close(randomData);
+		high_train[i].length = packet_length;
+		for(int d = 0;d<1000;d++){
+			high_train[i].bytes[d] = myRandomData[d];
+		}
 	}
 
 	//start to send the low and high entropy data
@@ -98,13 +103,14 @@ int main(){
 		
 	}
 	sleep(15);
-	// for(int i =0;i<6000;i++){
-	// 	if(sendto(network_socket,high_train[i].bytes,high_train[i].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
-	// 		perror("error");
-	// 	}else{
-	// 		printf("high packet sent!\n");
-	// 	}
-	// }
+	
+	for(int i =0;i<6000;i++){
+	if(sendto(network_socket,high_train[i].bytes,high_train[i].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
+	perror("error");
+	}else{
+	printf("high packet sent!\n");
+	}
+	}
 
 	printf("packets sent!\n");
 	
