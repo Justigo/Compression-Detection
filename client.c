@@ -11,16 +11,7 @@
 
 struct packet {
 	int length;
-	char bytes[1000];
-};
-
-struct payload{
-	unsigned int packet_id;
-	char bytes;
-};
-
-struct UDP_Header{
-
+	char bytes[998];
 };
 
 int main(){
@@ -56,41 +47,52 @@ int main(){
 	network_socket = socket(AF_INET,SOCK_DGRAM, 0); 
 	
 	// give the address for the socket
-	struct sockaddr_in server_address;
+	struct sockaddr_in server_address, client_address;
 	server_address.sin_family = AF_INET;
 	server_address.sin_port = htons(8765);
-	server_address.sin_addr.s_addr = INADDR_ANY;
+	server_address.sin_addr.s_addr = inet_addr("192.168.86.248");
 
-	int val = IP_PMTUDISC_DONT;
-	setsockopt(network_socket,IPPROTO_IP, IP_MTU_DISCOVER,&val,sizeof(val));
+	client_address.sin_family = AF_INET;
+	client_address.sin_port = htons(9876);
+	client_address.sin_addr.s_addr = inet_addr("192.168.86.249");
+
+	if(bind(network_socket,(struct sockaddr *)&client_address,sizeof(client_address))<0){
+		perror("error in binding");
+		return-1;
+	}
 
 	//initialize the packet train.
 	struct packet *low_train = (struct packet*)malloc(6000 * sizeof(struct packet));
-	// struct packet *high_train = (struct packet*)malloc(6000 * sizeof(struct packet));
-
-	// int randomData = open("/dev/urandom", O_RDONLY);
-	// unsigned char myRandomData[6000];
+	struct packet *high_train = (struct packet*)malloc(6000 * sizeof(struct packet));
 
 
 	//initialized the train to be low entropy
 	for(int j = 0;j<6000;j++){
-		// high_train[j].length = packet_length;
 		low_train[j].length = packet_length;
-		for (int k = 0;k<packet_length;k++){
-			// high_train[j].bytes[k] = myRandomData[k];
+		for (int k = 0;k<(packet_length-2);k++){
 			low_train[j].bytes[k] = 0;
 		}
 		id = j;
-		//stitch the id number with the payload
-		char conversion[2];
-		sprintf(conversion,"%u",id);
+		char conversion[50];
+		
+		sprintf(conversion,"%d",id);
 		char* payload = (char *)malloc(strlen(low_train[j].bytes) + strlen(conversion)+1);
+		
 		strcpy(payload,conversion);
+		
 		strcat(payload,low_train[j].bytes);
 		strcpy(low_train[j].bytes,payload);
-		// strcpy(low_train[j].bytes,conversion);
-		// printf("%s\n",conversion);
-
+		strcpy(low_train[j].bytes,conversion);
+	}
+	unsigned char myRandomData[1000];
+	for(int i =0;i<6000;i++){
+		unsigned int randomData = open("/dev/urandom", O_RDONLY);
+		read(randomData,myRandomData,1000);
+		close(randomData);
+		high_train[i].length = packet_length;
+		for(int d = 0;d<1000;d++){
+			high_train[i].bytes[d] = myRandomData[d];
+		}
 	}
 
 	//start to send the low and high entropy data
@@ -100,18 +102,21 @@ int main(){
 		}
 		
 	}
-	// for(int i =0;i<6000;i++){
-	// 	if(sendto(network_socket,high_train[i].bytes,high_train[i].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
-	// 		perror("error");
-	// 	}else{
-	// 		printf("high packet sent!\n");
-	// 	}
-	// }
+	sleep(15);
+	
+	for(int i =0;i<6000;i++){
+	if(sendto(network_socket,high_train[i].bytes,high_train[i].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
+	perror("error");
+	}else{
+	printf("high packet sent!\n");
+	}
+	}
 
 	printf("packets sent!\n");
+	
 	//Free the array of packets
 	free(low_train);
-	// free(high_train);
+	free(high_train);
 
 	// int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
 
