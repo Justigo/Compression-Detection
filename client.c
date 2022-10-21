@@ -21,20 +21,32 @@ int main(){
 	//TODO create UDP connection with the server to send config file stuff.
 	int tcp_socket;
 
-	// char port_num[256] = "8080";
-	// tcp_socket = socket(AF_INET,SOC_STREAM,0);
+	int network_socket;
+	//Sock stream =TCP
+	//zero equals default protocol
+	network_socket = socket(AF_INET,SOCK_STREAM, 0); 
+	
+	// give the address for the socket
+	struct sockaddr_in server_address;
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(9002);
+	server_address.sin_addr.s_addr = ;
 
-	// struct sockaddr_in probe_address;
-	// probe_address.sin_family = AF_INET;
-	// probe_address.sin_port = htons(8080);
-	// probe_address.sin_addr.s_addr = INADDR_ANY;
+	int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
 
-	// if(connect(tcp_socket,(struct sockaddr*)&probe_address,sizeof(probe_address))<0){
-	// 	printf("cannot connect.");
-	// }
+	//Check for error in the connection
+	if(connection_status == -1){
+		printf("Bro your connection sucks");
+	}
+	// receive data from the server
+	char server_response[256];
+	recv(network_socket, &server_response,sizeof(server_response),0);
 
-	// if(send(tcp_socket))
+	//print out the server's response
+	printf("The server successfully sent the data: %s\n", server_response);
 
+	//close the socket
+	close(network_socket);
 
 
 	int packet_length = 1000;
