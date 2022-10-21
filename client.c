@@ -78,9 +78,10 @@ int main(){
 		low_train[j].length = packet_length;
 		for (int k = 0;k<packet_length;k++){
 			// high_train[j].bytes[k] = myRandomData[k];
-			low_train[j].bytes[k] = '0';
+			low_train[j].bytes[k] = 0;
 		}
 		id = j;
+		//stitch the id number with the payload
 		char conversion[2];
 		sprintf(conversion,"%u",id);
 		char* payload = (char *)malloc(strlen(low_train[j].bytes) + strlen(conversion)+1);
