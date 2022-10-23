@@ -14,16 +14,6 @@ typedef struct
 	int tcp_port;
 }server_init;
 
-typedef struct 
-{  
-     char address[256];  
-     int source_port;  
-     int destination_port; 
-	 int tcp_port; 
-     int payload;  
-     int packets;   
-}configurations; 
-
 size_t get_file_size(const char *filepath){
     if (filepath == NULL){
         return 0;
@@ -72,6 +62,8 @@ int get_port(const char *filename){
 
 int main(int argc, char **argv){
 	char server_message[256];
+	char udp_train[256];
+	char destination_port[256];
 	int preprobe_port = get_port(argv[1]);
 
 	//server socket created.
@@ -82,7 +74,7 @@ int main(int argc, char **argv){
 	struct sockaddr_in probe_address;
 	probe_address.sin_family = AF_INET;
 	probe_address.sin_port = htons(preprobe_port);
-	probe_address.sin_addr.s_addr = inet_addr("192.168.86.248");
+	probe_address.sin_addr.s_addr = inet_addr("192.168.86.249");
 
 	//bind the socket to the port and ip
 	bind(probe_socket,(struct sockaddr*) &probe_address, sizeof(probe_address));
@@ -94,7 +86,11 @@ int main(int argc, char **argv){
 
 	//receive the message
 	recv(client_socket, server_message, sizeof(server_message),0);
+	recv(client_socket,udp_train,sizeof(udp_train),0);
+	recv(client_socket,destination_port,sizeof(destination_port),0);
 	printf("message: %s\n",server_message);
+	printf("train length: %s\n",udp_train);
+	printf("destination port: %s\n",destination_port);
 
 	//close the socket
 	close(probe_socket);
@@ -112,7 +108,7 @@ int main(int argc, char **argv){
 
 	server_address.sin_family = AF_INET;
 	server_address.sin_port = htons(8765);
-	server_address.sin_addr.s_addr=inet_addr("192.168.86.248");
+	server_address.sin_addr.s_addr=inet_addr("192.168.86.249");
 
 	int val = 1;
 	setsockopt(server_socket,SOL_SOCKET,IPV6_DONTFRAG, &val,sizeof(val));
@@ -125,7 +121,7 @@ int main(int argc, char **argv){
 	 int len, n;
 	 len = sizeof(client_address);
 	 for(int i = 0;i<6000;i++){
-	 	if(recvfrom(server_socket,(char *)bytes,sizeof(bytes),MSG_WAITALL,(struct sockaddr*) &client_address,len)>0){
+	 	if(recvfrom(server_socket,bytes,sizeof(bytes),MSG_WAITALL,(struct sockaddr*) &client_address,len)>0){
 			printf("packet loss.");
 		}else{
 			printf("packet received.");
