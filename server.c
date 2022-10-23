@@ -88,14 +88,12 @@ int main(int argc, char **argv){
 	recv(client_socket, server_message, sizeof(server_message),0);
 	recv(client_socket,udp_train,sizeof(udp_train),0);
 	recv(client_socket,destination_port,sizeof(destination_port),0);
-	printf("message: %s\n",server_message);
-	printf("train length: %s\n",udp_train);
-	printf("destination port: %s\n",destination_port);
+	int train = atoi(udp_train);
 
 	//close the socket
 	close(probe_socket);
 	
-	char * bytes;
+	char bytes[atoi(udp_train)];
 
 	 int server_socket;
 	 server_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -107,11 +105,14 @@ int main(int argc, char **argv){
 	memset(&client_address,0, sizeof(client_address));
 
 	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(8765);
+	server_address.sin_port = htons(atoi(destination_port));
 	server_address.sin_addr.s_addr=inet_addr("192.168.86.249");
 
-	int val = 1;
-	setsockopt(server_socket,SOL_SOCKET,IPV6_DONTFRAG, &val,sizeof(val));
+	client_address.sin_family =  AF_INET;
+
+
+	int val = IP_PMTUDISC_DO;
+	setsockopt(server_socket, IPPROTO_IP, IP_MTU_DISCOVER, &val, sizeof(val));
 
 	//bind the socket to the port and ip
 	if(bind(server_socket,(struct sockaddr*) &server_address, sizeof(server_address))<0){
@@ -120,21 +121,17 @@ int main(int argc, char **argv){
 
 	 int len, n;
 	 len = sizeof(client_address);
-	 for(int i = 0;i<6000;i++){
-	 	if(recvfrom(server_socket,bytes,sizeof(bytes),MSG_WAITALL,(struct sockaddr*) &client_address,len)>0){
-			printf("packet loss.");
-		}else{
-			printf("packet received.");
-		}
+	 for(int i = 0;i<train;i++){
+	 	recvfrom(server_socket,bytes,sizeof(bytes),MSG_WAITALL,(struct sockaddr*) &client_address,&len);
 	 }
 
-	for(int i = 0;i<6000;i++){
-	 	if(recvfrom(server_socket,(char *)bytes,sizeof(bytes),MSG_WAITALL,(struct sockaddr*) &client_address,len)>0){
-			printf("packet loss.");
-		}else{
-			printf("packet received.");
-		}
+	 printf("Receiving high entropy packets...\n");
+
+	for(int i = 0;i<train;i++){
+	 	recvfrom(server_socket,bytes,sizeof(bytes),MSG_WAITALL,(struct sockaddr*) &client_address,&len);
+		
 	}
+	printf("High entropy packets received!\n");
 	//close the socket
 	close(server_socket);
 	return 0;
