@@ -13,11 +13,11 @@
 typedef struct 
 {  
      char address[256];  
-     int source_port;  
-     int destination_port; 
-	 int tcp_port; 
-     int payload;  
-     int packets;   
+     char source_port[256];  
+     char destination_port[256]; 
+	 char tcp_port[256]; 
+     char payload[256];  
+     char packets[256];   
 }configurations;  
 
 configurations cJSON_to_struct(char* text, configurations settings){
@@ -29,19 +29,19 @@ configurations cJSON_to_struct(char* text, configurations settings){
 	strcpy(settings.address,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"source_port");
-	settings.source_port = item->valueint;
+	strcpy(settings.source_port,item->valuestring);
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"TCP_port");
-	settings.tcp_port = item->valueint;
+	strcpy(settings.tcp_port,item->valuestring);
 
     item= cJSON_GetObjectItemCaseSensitive(json,"destination_port");
-	settings.destination_port = item->valueint;
+	strcpy(settings.destination_port,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"size_of_payload");
-	settings.payload = item->valueint;
+	strcpy(settings.payload,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"number_of_udp_packets");
-	settings.packets = item->valueint;
+	strcpy(settings.packets,item->valuestring);
 
     cJSON_Delete(json);
     return settings;
@@ -94,13 +94,20 @@ configurations read_file(const char *filename)
 
 
 int main(int argc, char **argv){
+	
 
 
 	configurations settings = read_file(argv[1]);
+	int packet_length = atoi(settings.payload);
+	int train_size = atoi(settings.packets);
+	int source_port = atoi(settings.source_port);
+	int destination_port = atoi(settings.destination_port);
+	int tcp_port = atoi(settings.tcp_port);
+
 
 	struct packet {
 		int length;
-		char bytes[settings.payload-2];
+		char bytes[packet_length-2];
 	};
 
 	// int probe_socket;
@@ -112,8 +119,8 @@ int main(int argc, char **argv){
 	// // give the address for the socket
 	struct sockaddr_in probe_address;
 	probe_address.sin_family = AF_INET;
-	probe_address.sin_port = htons(settings.tcp_port);
-	probe_address.sin_addr.s_addr =inet_addr("192.168.86.248");
+	probe_address.sin_port = htons(tcp_port);
+	probe_address.sin_addr.s_addr =inet_addr("192.168.86.249");
 
 	int connection_status = connect(probe_socket, (struct sockaddr *) &probe_address, sizeof(probe_address));
 
@@ -123,7 +130,9 @@ int main(int argc, char **argv){
 	}
 	// // receive data from the server
 	char server_response[256]="balls";
-	send(probe_socket, server_response,sizeof(server_response),0);
+	send(probe_socket, (char *)settings.address,sizeof(settings.address),0);
+	send(probe_socket, (char *)settings.packets,sizeof(settings.packets),0);
+	send(probe_socket,(char *)settings.destination_port,sizeof(settings.packets),0);
 
 	// //print out the server's response
 	printf("The server successfully sent the data: %s\n", server_response);
@@ -131,8 +140,6 @@ int main(int argc, char **argv){
 	// //close the socket
 	close(probe_socket);
 
-	int packet_length = settings.payload;
-	int train_size = settings.packets;
 	unsigned short id;
 	//Create the socket
 	//
@@ -144,12 +151,12 @@ int main(int argc, char **argv){
 	// give the address for the socket
 	struct sockaddr_in server_address, client_address;
 	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(settings.destination_port);
-	server_address.sin_addr.s_addr = inet_addr("192.168.86.248");
+	server_address.sin_port = htons(destination_port);
+	server_address.sin_addr.s_addr = inet_addr("192.168.86.249");
 
 	client_address.sin_family = AF_INET;
-	client_address.sin_port = htons(settings.source_port);
-	client_address.sin_addr.s_addr = inet_addr("192.168.86.249");
+	client_address.sin_port = htons(source_port);
+	client_address.sin_addr.s_addr = inet_addr("192.168.86.248");
 
 	if(bind(network_socket,(struct sockaddr *)&client_address,sizeof(client_address))<0){
 		perror("error in binding");
