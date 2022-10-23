@@ -8,48 +8,131 @@
 #include <netinet/in.h>
 #include <fcntl.h>
 #include<string.h>
+#include<sys/stat.h>
 
-struct packet {
-	int length;
-	char bytes[998];
-};
+typedef struct 
+{  
+     char address[256];  
+     int source_port;  
+     int destination_port; 
+	 int tcp_port; 
+     int payload;  
+     int packets;   
+}configurations;  
 
-int main(){
+configurations cJSON_to_struct(char* text, configurations settings){
+    cJSON *json,*item;
+    int i =0;
+    json = cJSON_Parse(text);
 
-	cJSON *str;
-	// str = cJSON_GetObjectItemCaseSensitive();
-	//TODO create UDP connection with the server to send config file stuff.
-	int tcp_socket;
+    item = cJSON_GetObjectItemCaseSensitive(json,"server_address");
+	strcpy(settings.address,item->valuestring);
 
-	int network_socket;
-	//Sock stream =TCP
-	//zero equals default protocol
-	network_socket = socket(AF_INET,SOCK_STREAM, 0); 
+    item = cJSON_GetObjectItemCaseSensitive(json,"source_port");
+	settings.source_port = item->valueint;
+
+	item = cJSON_GetObjectItemCaseSensitive(json,"TCP_port");
+	settings.tcp_port = item->valueint;
+
+    item= cJSON_GetObjectItemCaseSensitive(json,"destination_port");
+	settings.destination_port = item->valueint;
+
+    item = cJSON_GetObjectItemCaseSensitive(json,"size_of_payload");
+	settings.payload = item->valueint;
+
+    item = cJSON_GetObjectItemCaseSensitive(json,"number_of_udp_packets");
+	settings.packets = item->valueint;
+
+    cJSON_Delete(json);
+    return settings;
+
+}
+
+
+
+size_t get_file_size(const char *filepath){
+    if (filepath == NULL){
+        return 0;
+    }
+    struct stat filestat;
+    memset(&filestat,0,sizeof(struct stat));
+
+    if(stat(filepath,&filestat)==0){
+        return filestat.st_size;
+    }else{
+        return 0;
+    }
+}
+
+configurations read_file(const char *filename)
+{
+    FILE *fp;
+
+    configurations settings;
+
+    size_t size = get_file_size(filename);
+    if(size ==0){
+        printf("size failed\n");
+    }
+
+    char *buffer = malloc(size+1);
+    if(buffer == NULL){
+        printf("malloc not successful\n");
+    }
+    memset(buffer,0,size+1);
+
+    fp = fopen(filename,"rb");
+    
+    fread(buffer,1,size,fp);
+    fclose(fp);
+
+    settings = cJSON_to_struct(buffer,settings);
+    free(buffer);
+    return settings;
+}
+
+
+
+int main(int argc, char **argv){
+
+
+	configurations settings = read_file(argv[1]);
+
+	struct packet {
+		int length;
+		char bytes[settings.payload-2];
+	};
+
+	// int probe_socket;
+	// //Sock stream =TCP
+	// //zero equals default protocol
+	int probe_socket;
+	probe_socket = socket(AF_INET,SOCK_STREAM, 0); 
 	
-	// give the address for the socket
-	struct sockaddr_in server_address;
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(9002);
-	server_address.sin_addr.s_addr = ;
+	// // give the address for the socket
+	struct sockaddr_in probe_address;
+	probe_address.sin_family = AF_INET;
+	probe_address.sin_port = htons(settings.tcp_port);
+	probe_address.sin_addr.s_addr =inet_addr("192.168.86.248");
 
-	int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
+	int connection_status = connect(probe_socket, (struct sockaddr *) &probe_address, sizeof(probe_address));
 
-	//Check for error in the connection
+	// //Check for error in the connection
 	if(connection_status == -1){
 		printf("Bro your connection sucks");
 	}
-	// receive data from the server
-	char server_response[256];
-	recv(network_socket, &server_response,sizeof(server_response),0);
+	// // receive data from the server
+	char server_response[256]="balls";
+	send(probe_socket, server_response,sizeof(server_response),0);
 
-	//print out the server's response
+	// //print out the server's response
 	printf("The server successfully sent the data: %s\n", server_response);
 
-	//close the socket
-	close(network_socket);
+	// //close the socket
+	close(probe_socket);
 
-
-	int packet_length = 1000;
+	int packet_length = settings.payload;
+	int train_size = settings.packets;
 	unsigned short id;
 	//Create the socket
 	//
@@ -61,11 +144,11 @@ int main(){
 	// give the address for the socket
 	struct sockaddr_in server_address, client_address;
 	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(8765);
+	server_address.sin_port = htons(settings.destination_port);
 	server_address.sin_addr.s_addr = inet_addr("192.168.86.248");
 
 	client_address.sin_family = AF_INET;
-	client_address.sin_port = htons(9876);
+	client_address.sin_port = htons(settings.source_port);
 	client_address.sin_addr.s_addr = inet_addr("192.168.86.249");
 
 	if(bind(network_socket,(struct sockaddr *)&client_address,sizeof(client_address))<0){
@@ -74,12 +157,12 @@ int main(){
 	}
 
 	//initialize the packet train.
-	struct packet *low_train = (struct packet*)malloc(6000 * sizeof(struct packet));
-	struct packet *high_train = (struct packet*)malloc(6000 * sizeof(struct packet));
+	struct packet *low_train = (struct packet*)malloc(train_size * sizeof(struct packet));
+	struct packet *high_train = (struct packet*)malloc(train_size* sizeof(struct packet));
 
 
 	//initialized the train to be low entropy
-	for(int j = 0;j<6000;j++){
+	for(int j = 0;j<train_size;j++){
 		low_train[j].length = packet_length;
 		for (int k = 0;k<(packet_length-2);k++){
 			low_train[j].bytes[k] = 0;
@@ -96,19 +179,32 @@ int main(){
 		strcpy(low_train[j].bytes,payload);
 		strcpy(low_train[j].bytes,conversion);
 	}
-	unsigned char myRandomData[1000];
-	for(int i =0;i<6000;i++){
-		unsigned int randomData = open("/dev/urandom", O_RDONLY);
-		read(randomData,myRandomData,1000);
-		close(randomData);
+
+	unsigned char myRandomData[packet_length];
+	//Note: May create function right here
+	unsigned int randomData = open("rand", O_RDONLY);
+	read(randomData,myRandomData,packet_length);
+	close(randomData);
+
+	for(int i =0;i<train_size;i++){
 		high_train[i].length = packet_length;
-		for(int d = 0;d<1000;d++){
+		for(int d = 0;d<(packet_length-2);d++){
 			high_train[i].bytes[d] = myRandomData[d];
 		}
+		id = i;
+		char conversion[50];
+		sprintf(conversion,"%d",id);
+		char* payload = (char *)malloc(strlen(high_train[i].bytes) + strlen(conversion)+1);
+
+		strcpy(payload,conversion);
+		
+		strcat(payload,high_train[i].bytes);
+		strcpy(high_train[i].bytes,payload);
+		strcpy(high_train[i].bytes,conversion);
 	}
 
 	//start to send the low and high entropy data
-	for(int b = 0;b<6000;b++){
+	for(int b = 0;b<train_size;b++){
 		if(sendto(network_socket,low_train[b].bytes,low_train[b].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
@@ -116,7 +212,7 @@ int main(){
 	}
 	sleep(15);
 	
-	for(int i =0;i<6000;i++){
+	for(int i =0;i<train_size;i++){
 	if(sendto(network_socket,high_train[i].bytes,high_train[i].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 	perror("error");
 	}else{
