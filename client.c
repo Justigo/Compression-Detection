@@ -91,8 +91,6 @@ configurations read_file(const char *filename)
     return settings;
 }
 
-
-
 int main(int argc, char **argv){
 	
 
@@ -107,12 +105,14 @@ int main(int argc, char **argv){
 
 	struct packet {
 		int length;
-		char bytes[packet_length-2];
+		char bytes[packet_length];
 	};
 
 	// int probe_socket;
 	// //Sock stream =TCP
 	// //zero equals default protocol
+
+	printf("Starting pre probing phase...\n");
 	int probe_socket;
 	probe_socket = socket(AF_INET,SOCK_STREAM, 0); 
 	
@@ -126,20 +126,18 @@ int main(int argc, char **argv){
 
 	// //Check for error in the connection
 	if(connection_status == -1){
-		printf("Bro your connection sucks");
+		printf("Cannot Connect to server.\n");
 	}
-	// // receive data from the server
-	char server_response[256]="balls";
+
 	send(probe_socket, (char *)settings.address,sizeof(settings.address),0);
 	send(probe_socket, (char *)settings.packets,sizeof(settings.packets),0);
-	send(probe_socket,(char *)settings.destination_port,sizeof(settings.packets),0);
-
-	// //print out the server's response
-	printf("The server successfully sent the data: %s\n", server_response);
+	send(probe_socket,(char *)settings.destination_port,sizeof(settings.destination_port),0);
 
 	// //close the socket
+	printf("Ending probing phase...\n");
 	close(probe_socket);
 
+	printf("Sending packets...\n");
 	unsigned short id;
 	//Create the socket
 	//
@@ -189,7 +187,7 @@ int main(int argc, char **argv){
 
 	unsigned char myRandomData[packet_length];
 	//Note: May create function right here
-	unsigned int randomData = open("rand", O_RDONLY);
+	unsigned int randomData = open("random", O_RDONLY);
 	read(randomData,myRandomData,packet_length);
 	close(randomData);
 
@@ -204,7 +202,7 @@ int main(int argc, char **argv){
 		char* payload = (char *)malloc(strlen(high_train[i].bytes) + strlen(conversion)+1);
 
 		strcpy(payload,conversion);
-		
+
 		strcat(payload,high_train[i].bytes);
 		strcpy(high_train[i].bytes,payload);
 		strcpy(high_train[i].bytes,conversion);
@@ -212,7 +210,7 @@ int main(int argc, char **argv){
 
 	//start to send the low and high entropy data
 	for(int b = 0;b<train_size;b++){
-		if(sendto(network_socket,low_train[b].bytes,low_train[b].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
+		if(sendto(network_socket,low_train[b].bytes,sizeof(low_train[b].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
 		
@@ -220,11 +218,9 @@ int main(int argc, char **argv){
 	sleep(15);
 	
 	for(int i =0;i<train_size;i++){
-	if(sendto(network_socket,high_train[i].bytes,high_train[i].length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
-	perror("error");
-	}else{
-	printf("high packet sent!\n");
-	}
+		if(sendto(network_socket,high_train[i].bytes,sizeof(high_train[i].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
+			perror("error");
+		}
 	}
 
 	printf("packets sent!\n");
