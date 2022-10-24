@@ -175,14 +175,8 @@ int main(int argc, char **argv){
 		id = j;
 		char conversion[50];
 		
-		sprintf(conversion,"%d",id);
-		char* payload = (char *)malloc(strlen(low_train[j].bytes) + strlen(conversion)+1);
-		
-		strcpy(payload,conversion);
-		
-		strcat(payload,low_train[j].bytes);
-		strcpy(low_train[j].bytes,payload);
-		strcpy(low_train[j].bytes,conversion);
+		sprintf(conversion,"%d",id);				
+		strcat(low_train[j].bytes,conversion);
 	}
 
 	unsigned char myRandomData[packet_length];
@@ -198,14 +192,9 @@ int main(int argc, char **argv){
 		}
 		id = i;
 		char conversion[50];
+
 		sprintf(conversion,"%d",id);
-		char* payload = (char *)malloc(strlen(high_train[i].bytes) + strlen(conversion)+1);
-
-		strcpy(payload,conversion);
-
-		strcat(payload,high_train[i].bytes);
-		strcpy(high_train[i].bytes,payload);
-		strcpy(high_train[i].bytes,conversion);
+		strcat(high_train[i].bytes,conversion);
 	}
 
 	//start to send the low and high entropy data
@@ -228,16 +217,21 @@ int main(int argc, char **argv){
 	//Free the array of packets
 	free(low_train);
 	free(high_train);
-
-	// int connection_status = connect(network_socket, (struct sockaddr *) &server_address, sizeof(server_address));
-
-	//TODO: Create packets with high entropy data: randome sequence of bits.
-	// recv(network_socket, &server_response,sizeof(server_response),0);
-
-	//print out the server's response
-	// printf("The server successfully sent the data: %s\n", server_response);
-
-	//close the socket
 	close(network_socket);
+	
+	char message[256];
+	int postProbe_socket;
+	postProbe_socket = socket(AF_INET,SOCK_STREAM,0);
+
+	int post_probe_connection = connect(postProbe_socket, (struct sockaddr *) &probe_address, sizeof(probe_address));
+	if(post_probe_connection == -1){
+		perror("error in connecting to server");
+	}
+	recv(postProbe_socket,&message,sizeof(message),0);
+
+
+	printf("report %s\n",message);
+	close(postProbe_socket);
+
 	return 0;
 }
