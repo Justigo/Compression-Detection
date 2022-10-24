@@ -1,9 +1,9 @@
 {
     "server_address":"24.5.36.115",
-    "source_port":9876,
-    "TCP_port":9002,
-    "destination_port":8765,
-    "size_of_payload":1000,
-    "number_of_udp_packets":6000
+    "source_port":"9876",
+    "TCP_port":"9002",
+    "destination_port":"8765",
+    "size_of_payload":"1000",
+    "number_of_udp_packets":"6000"
     
 }
