@@ -165,9 +165,11 @@ int main(int argc, char **argv){
 	struct packet *low_train = (struct packet*)malloc(train_size * sizeof(struct packet));
 	struct packet *high_train = (struct packet*)malloc(train_size* sizeof(struct packet));
 
+	char low_arr[train_size][packet_length];
+
 
 	//initialized the train to be low entropy
-	for(int j = 0;j<train_size;j++){
+	for(unsigned short int j = 0;j<train_size;j++){
 		low_train[j].length = packet_length;
 		for (int k = 0;k<(packet_length-2);k++){
 			low_train[j].bytes[k] = 0;
@@ -202,6 +204,7 @@ int main(int argc, char **argv){
 		if(sendto(network_socket,low_train[b].bytes,sizeof(low_train[b].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
+		usleep(500*1000);
 		
 	}
 	sleep(15);
@@ -210,6 +213,7 @@ int main(int argc, char **argv){
 		if(sendto(network_socket,high_train[i].bytes,sizeof(high_train[i].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
+		usleep(500*1000);
 	}
 
 	printf("packets sent!\n");
