@@ -84,6 +84,7 @@ int main(int argc, char **argv)
 	// server socket created.
 	int probe_socket;
 	probe_socket = socket(AF_INET, SOCK_STREAM, 0);
+	printf("beginning pre-probing phase...\n");
 
 	// define server address
 	struct sockaddr_in probe_address;
@@ -111,6 +112,7 @@ int main(int argc, char **argv)
 	close(probe_socket);
 	signal(SIGTERM, cleanExit);
 	signal(SIGINT, cleanExit);
+	printf("preprobing phase finished...\n");
 
 	char bytes[atoi(udp_train)];
 
@@ -141,6 +143,7 @@ int main(int argc, char **argv)
 	int len, n;
 	len = sizeof(client_address);
 
+	printf("sending packets...\n");
 	struct timespec start1,stop1,start2,stop2;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start1);
 	for (int i = 0; i < train; i++)
@@ -149,6 +152,7 @@ int main(int argc, char **argv)
 	}
 	clock_gettime(CLOCK_MONOTONIC_RAW, &stop1);
 	uint64_t result1 = (stop1.tv_sec - start1.tv_sec) * 1000000 + (stop1.tv_nsec - start1.tv_nsec) / 1000;
+	printf("low entropy packets received.\n");
 
 
 	// timer = clock() - timer;
@@ -175,7 +179,6 @@ int main(int argc, char **argv)
 	char *report;
 
 	uint64_t res = result2 - result1;
-	printf("%"PRIu64 "\n",res);
 
 	if( res> 100){
 		report = "compression detected";
@@ -192,7 +195,7 @@ int main(int argc, char **argv)
 	post_probe_address.sin_addr.s_addr = inet_addr("192.168.86.249");
 
 	if(postProbe_socket == -1){
-		perror("gay");
+		perror("no socket");
 	}
 	setsockopt(postProbe_socket, SOL_SOCKET, SO_REUSEADDR,&value,sizeof(val));
 
