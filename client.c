@@ -204,7 +204,7 @@ int main(int argc, char **argv){
 		if(sendto(network_socket,low_train[b].bytes,sizeof(low_train[b].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
-		usleep(500*1000);
+		usleep(100);
 		
 	}
 	sleep(15);
@@ -213,7 +213,7 @@ int main(int argc, char **argv){
 		if(sendto(network_socket,high_train[i].bytes,sizeof(high_train[i].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
-		usleep(500*1000);
+		usleep(100);
 	}
 
 	printf("packets sent!\n");
