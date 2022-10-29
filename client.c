@@ -48,7 +48,31 @@ configurations cJSON_to_struct(char* text, configurations settings){
 
 }
 
+void set_address(int socket, int port, struct sockaddr_in *address,char * ip_address){
+	address->sin_family = AF_INET;
+	address->sin_port = htons(port);
+	address->sin_addr.s_addr =inet_addr(ip_address);
+}
 
+char ** populate_array(char **array,char *payload,int length,int size){
+	array = (char**)malloc(size*sizeof(char*));
+
+	for(unsigned short int j=0;j<size;j++){
+		array[j] = (char*)malloc(length*sizeof(char));
+		memcpy(array[j],payload,length);
+		array[j][0] = j%256;
+		array[j][1] = j/256;
+	}
+
+	return array;
+}
+
+void free_array(char**array,int size){
+	for(int i=0;i<size;i++){
+		free(array[i]);
+	}
+	free(array);
+}
 
 size_t get_file_size(const char *filepath){
     if (filepath == NULL){
@@ -93,8 +117,6 @@ configurations read_file(const char *filename)
 
 int main(int argc, char **argv){
 	
-
-
 	configurations settings = read_file(argv[1]);
 	int packet_length = atoi(settings.payload);
 	int train_size = atoi(settings.packets);
@@ -102,25 +124,16 @@ int main(int argc, char **argv){
 	int destination_port = atoi(settings.destination_port);
 	int tcp_port = atoi(settings.tcp_port);
 
-
-	struct packet {
-		int length;
-		char bytes[packet_length];
-	};
-
-	// int probe_socket;
-	// //Sock stream =TCP
-	// //zero equals default protocol
-
 	printf("Starting pre probing phase...\n");
 	int probe_socket;
 	probe_socket = socket(AF_INET,SOCK_STREAM, 0); 
 	
 	// // give the address for the socket
 	struct sockaddr_in probe_address;
-	probe_address.sin_family = AF_INET;
-	probe_address.sin_port = htons(tcp_port);
-	probe_address.sin_addr.s_addr =inet_addr("192.168.86.249");
+	char * server_ip = "192.168.86.249";
+	char * client_ip = "192.168.86.248";
+	memset(&probe_address,0,sizeof(probe_address));
+	set_address(probe_socket,tcp_port,&probe_address,server_ip);
 
 	int connection_status = connect(probe_socket, (struct sockaddr *) &probe_address, sizeof(probe_address));
 
@@ -138,70 +151,46 @@ int main(int argc, char **argv){
 	close(probe_socket);
 
 	printf("Sending packets...\n");
-	unsigned short id;
 	//Create the socket
-	//
+	
 	int network_socket;
 	//Sock stream =TCP
 	//zero equals default protocol
 	network_socket = socket(AF_INET,SOCK_DGRAM, 0); 
 	
-	// give the address for the socket
+	// give the address for the udp socket for both server and client.
 	struct sockaddr_in server_address, client_address;
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(destination_port);
-	server_address.sin_addr.s_addr = inet_addr("192.168.86.249");
-
-	client_address.sin_family = AF_INET;
-	client_address.sin_port = htons(source_port);
-	client_address.sin_addr.s_addr = inet_addr("192.168.86.248");
+	memset(&server_address,0,sizeof(server_address));
+	memset(&client_address,0,sizeof(client_address));
+	set_address(network_socket,destination_port,&server_address,server_ip);
+	set_address(network_socket,source_port,&client_address,client_ip);
 
 	if(bind(network_socket,(struct sockaddr *)&client_address,sizeof(client_address))<0){
 		perror("error in binding");
 		return-1;
 	}
 
-	//initialize the packet train.
-	struct packet *low_train = (struct packet*)malloc(train_size * sizeof(struct packet));
-	struct packet *high_train = (struct packet*)malloc(train_size* sizeof(struct packet));
+	//initialize the packet train for both low and high entropy data.
 
-	char low_arr[train_size][packet_length];
+	char ** packet_list = (char**)malloc(train_size*sizeof(char*));
 
+	char * low_entropy = (char *)malloc(packet_length*sizeof(char));
+	memset(low_entropy,0,packet_length);
 
-	//initialized the train to be low entropy
-	for(unsigned short int j = 0;j<train_size;j++){
-		low_train[j].length = packet_length;
-		for (int k = 0;k<(packet_length-2);k++){
-			low_train[j].bytes[k] = 0;
-		}
-		id = j;
-		char conversion[50];
-		
-		sprintf(conversion,"%d",id);				
-		strcat(low_train[j].bytes,conversion);
-	}
+	char ** low_train2 = populate_array(packet_list,low_entropy,packet_length,train_size);
 
-	unsigned char myRandomData[packet_length];
+	//initialize the payload for high entropy data
+	char * myRandomData = (char *)malloc(packet_length * sizeof(char));
 	//Note: May create function right here
 	unsigned int randomData = open("random", O_RDONLY);
 	read(randomData,myRandomData,packet_length);
 	close(randomData);
 
-	for(int i =0;i<train_size;i++){
-		high_train[i].length = packet_length;
-		for(int d = 0;d<(packet_length-2);d++){
-			high_train[i].bytes[d] = myRandomData[d];
-		}
-		id = i;
-		char conversion[50];
-
-		sprintf(conversion,"%d",id);
-		strcat(high_train[i].bytes,conversion);
-	}
+	char** high_train2 = populate_array(packet_list,myRandomData,packet_length,train_size);
 
 	//start to send the low and high entropy data
 	for(int b = 0;b<train_size;b++){
-		if(sendto(network_socket,low_train[b].bytes,sizeof(low_train[b].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
+		if(sendto(network_socket,low_train2[b],packet_length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
 		usleep(100);
@@ -210,7 +199,7 @@ int main(int argc, char **argv){
 	sleep(15);
 	
 	for(int i =0;i<train_size;i++){
-		if(sendto(network_socket,high_train[i].bytes,sizeof(high_train[i].bytes),0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
+		if(sendto(network_socket,high_train2[i],packet_length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
 		usleep(100);
@@ -218,11 +207,14 @@ int main(int argc, char **argv){
 
 	printf("packets sent!\n");
 	
-	//Free the array of packets
-	free(low_train);
-	free(high_train);
+	//Free the array of packets and the payload
+	free(low_entropy);
+	free(myRandomData);
+	free_array(low_train2,train_size);
+	free_array(high_train2,train_size);
 	close(network_socket);
-	
+
+	//creation of the postprobe tcp socket
 	char message[256];
 	int postProbe_socket;
 	postProbe_socket = socket(AF_INET,SOCK_STREAM,0);
@@ -232,7 +224,6 @@ int main(int argc, char **argv){
 		perror("error in connecting to server");
 	}
 	recv(postProbe_socket,&message,sizeof(message),0);
-
 
 	printf("report %s\n",message);
 	close(postProbe_socket);
