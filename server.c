@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 	int len, n;
 	len = sizeof(client_address);
 
-	printf("sending packets...\n");
+	printf("Receiving packets...\n");
 	struct timespec start1,stop1,start2,stop2;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start1);
 	for (int i = 0; i < train; i++)
