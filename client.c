@@ -49,6 +49,7 @@ configurations cJSON_to_struct(char* text, configurations settings){
 	strcpy(settings.intermit_time,item->valuestring);
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
+	strcpy(settings.server_ip,item->valuestring);
 
     cJSON_Delete(json);
     return settings;
