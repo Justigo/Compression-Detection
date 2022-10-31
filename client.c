@@ -17,7 +17,9 @@ typedef struct
      char destination_port[256]; 
 	 char tcp_port[256]; 
      char payload[256];  
-     char packets[256];   
+     char packets[256];  
+	 char intermit_time[256]; 
+	 char server_ip[256];
 }configurations;  
 
 configurations cJSON_to_struct(char* text, configurations settings){
@@ -42,6 +44,11 @@ configurations cJSON_to_struct(char* text, configurations settings){
 
     item = cJSON_GetObjectItemCaseSensitive(json,"number_of_udp_packets");
 	strcpy(settings.packets,item->valuestring);
+
+	item = cJSON_GetObjectItemCaseSensitive(json,"intermit_time");
+	strcpy(settings.intermit_time,item->valuestring);
+
+	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
 
     cJSON_Delete(json);
     return settings;
@@ -123,6 +130,7 @@ int main(int argc, char **argv){
 	int source_port = atoi(settings.source_port);
 	int destination_port = atoi(settings.destination_port);
 	int tcp_port = atoi(settings.tcp_port);
+	int intermit_time = atoi(settings.intermit_time);
 
 	printf("Starting pre probing phase...\n");
 	int probe_socket;
@@ -130,7 +138,7 @@ int main(int argc, char **argv){
 	
 	// // give the address for the socket
 	struct sockaddr_in probe_address;
-	char * server_ip = "192.168.86.249";
+	char * server_ip = settings.server_ip;
 	char * client_ip = "192.168.86.248";
 	memset(&probe_address,0,sizeof(probe_address));
 	set_address(probe_socket,tcp_port,&probe_address,server_ip);

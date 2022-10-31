@@ -4,6 +4,8 @@
     "TCP_port":"9002",
     "destination_port":"8765",
     "size_of_payload":"1000",
-    "number_of_udp_packets":"6000"
+    "number_of_udp_packets":"6000",
+    "intermit_time":"15",
+    "server_ip":"192.168.86.249"
     
 }
