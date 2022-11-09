@@ -9,6 +9,8 @@
 #include <netinet/ip.h>
 #include <netinet/ip.h>
 #include "cJSON.h"
+#include <linux/ip.h>
+#include <linux/udp.h>
 
 typedef struct 
 {  
@@ -122,6 +124,17 @@ configurations read_file(const char *filename)
     free(buffer);
     return settings;
 }
+
+unsigned short csum(unsigned short *buf, int nwords)
+{
+  unsigned long sum;
+  for(sum=0; nwords>0; nwords--)
+    sum += *buf++;
+  sum = (sum >> 16) + (sum &0xffff);
+  sum += (sum >> 16);
+  return (unsigned short)(~sum);
+}
+
 int main(){
 configurations settings = read_file(argv[1]);
 	int packet_length = atoi(settings.payload);
@@ -131,5 +144,4 @@ configurations settings = read_file(argv[1]);
 	int tcp_port = atoi(settings.tcp_port);
 	int intermit_time = atoi(settings.intermit_time);
 	int ttl = atoi(settings.ttl);
-	
 }
