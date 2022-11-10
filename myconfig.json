@@ -7,6 +7,9 @@
     "number_of_udp_packets":"6000",
     "intermit_time":"15",
     "server_ip":"192.168.86.249",
-    "ttl":"255"
+    "ttl":"255",
+    "head_port":"2340",
+    "tail_port":"1023"
+
     
 }

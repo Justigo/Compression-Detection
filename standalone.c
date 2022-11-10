@@ -1,16 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
 #include <unistd.h>
-
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/ip.h>
 #include "cJSON.h"
-#include <linux/ip.h>
-#include <linux/udp.h>
+#include<sys/stat.h>
 
 typedef struct 
 {  
@@ -22,7 +21,9 @@ typedef struct
      char packets[256];  
      char intermit_time[256]; 
      char server_ip[256];
-     char ttl[256]
+     char ttl[256];
+     char head_port[256];
+     char tail_port[256];
 }configurations;
 
 configurations cJSON_to_struct(char* text, configurations settings){
@@ -53,6 +54,15 @@ configurations cJSON_to_struct(char* text, configurations settings){
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
 	strcpy(settings.server_ip,item->valuestring);
+
+    item = cJSON_GetObjectItemCaseSensitive(json,"ttl");
+    strcpy(settings.ttl,item->valuestring);
+
+    item = cJSON_GetObjectItemCaseSensitive(json,"head_port");
+    strcpy(settings.head_port,item->valuestring);
+
+    item = cJSON_GetObjectItemCaseSensitive(json,"tail_port");
+    strcpy(settings.tail_port,item->valuestring);
 
     cJSON_Delete(json);
     return settings;
@@ -135,8 +145,8 @@ unsigned short csum(unsigned short *buf, int nwords)
   return (unsigned short)(~sum);
 }
 
-int main(){
-configurations settings = read_file(argv[1]);
+int main(int argc, char **argv){
+    configurations settings = read_file(argv[1]);
 	int packet_length = atoi(settings.payload);
 	int train_size = atoi(settings.packets);
 	int source_port = atoi(settings.source_port);
@@ -144,4 +154,23 @@ configurations settings = read_file(argv[1]);
 	int tcp_port = atoi(settings.tcp_port);
 	int intermit_time = atoi(settings.intermit_time);
 	int ttl = atoi(settings.ttl);
+    int head_port = atoi(settings.head_port);
+    int tail_port = atoi(settings.tail_port);
+
+    int raw_socket = socket(AF_INET,SOCK_RAW,IPPROTO_TCP);
+    if(raw_socket == -1){
+        perror("error in creating socket");
+    }
+
+    //Datagram to represent the packet
+	char datagram[4096] , source_ip[32] , *data , *pseudogram;
+	
+	//zero out the packet buffer
+	memset (datagram, 0, 4096);
+
+    struct iphdr *iph = (struct iphdr *) datagram;
+
+
+    return 0;
+
 }
