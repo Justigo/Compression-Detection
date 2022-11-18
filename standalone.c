@@ -153,15 +153,35 @@ int * allocate_intmem(int len){
 		memset (tmp,0,len*sizeof(int));
 		return(tmp);
 	}else{
-		fprintf(stderr,"ERROR: Cannot allocate memory for array allocate_intmem().\n",len);
+		fprintf(stderr,"ERROR: Cannot allocate memory for array allocate_intmem().\n");
 		exit(EXIT_FAILURE);
 	}
 
 	
 }
 
-uint8_t * allocate_ustrmem (int len)
+// Allocate memory for an array of chars.
+char *
+allocate_strmem (int len)
 {
+  void *tmp;
+
+  if (len <= 0) {
+    fprintf (stderr, "ERROR: Cannot allocate memory because len = %i in allocate_strmem().\n", len);
+    exit (EXIT_FAILURE);
+  }
+
+  tmp = (char *) malloc (len * sizeof (char));
+  if (tmp != NULL) {
+    memset (tmp, 0, len * sizeof (char));
+    return (tmp);
+  } else {
+    fprintf (stderr, "ERROR: Cannot allocate memory for array allocate_strmem().\n");
+    exit (EXIT_FAILURE);
+  }
+}
+
+uint8_t * allocate_ustrmem (int len){
   void *tmp;
 
   if (len <= 0) {
@@ -243,6 +263,21 @@ int main(int argc, char **argv){
 	ip_flags = allocate_intmem(4);
 
 	strcpy(interface,"enp0s3");
+
+	if((sd = socket(AF_INET, SOCK_RAW,IPPROTO_RAW)) < 0){
+		perror("socket() failed to get socket descriptor for using ioctl() ");
+		return (EXIT_FAILURE);
+	}
+
+	memset(&ifr,0,sizeof (ifr));
+	snprintf(ifr.ifr_name, sizeof (ifr.ifr_name),"%s",interface);
+	if(ioctl(sd, SIOCGIFHWADDR, &ifr)<0){
+		perror("ioctl() failed to get source MAC address");
+		return (EXIT_FAILURE);
+	}
+	close(sd);
+
+	memcpy(src_mac,ifr.ifr_hwaddr.sa_data, 6);
 
     int network_socket;
 	//Sock stream =TCP
