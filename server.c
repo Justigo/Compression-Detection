@@ -15,7 +15,7 @@
 
 typedef struct
 {
-	int tcp_port;
+   int tcp_port;
 } server_init;
 
 void cleanExit(){
@@ -144,43 +144,46 @@ int main(int argc, char **argv)
 	len = sizeof(client_address);
 
 	printf("Receiving packets...\n");
-	struct timespec start1,stop1,start2,stop2;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start1);
+
+	clock_t timer;
+
+	double time_taken = ((double)timer) / CLOCKS_PER_SEC;
 	for (int i = 0; i < train; i++)
 	{
 		recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
+		if(i==0){
+			timer = clock();
+		}
 	}
-	clock_gettime(CLOCK_MONOTONIC_RAW, &stop1);
-	uint64_t result1 = (stop1.tv_sec - start1.tv_sec) * 1000000 + (stop1.tv_nsec - start1.tv_nsec) / 1000;
+	timer = clock()-timer;
 	printf("low entropy packets received.\n");
 
 
 	// timer = clock() - timer;
 	// double time_taken = ((double)timer) / CLOCKS_PER_SEC;
 
-	printf("Receiving high entropy packets...\n");
 	clock_t timer2;
-	// timer2 = clock();
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start2);
+	printf("Receiving high entropy packets...\n");
 	for (int i = 0; i < train; i++)
 	{
 		recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
+		if(i==0 ){
+			timer2 = clock();
+		}
 	}
-	uint64_t result2 = (stop2.tv_sec - start2.tv_sec) * 1000000 + (stop2.tv_nsec - start2.tv_nsec) / 1000;
-	// timer2 = clock() - timer2;
-	// double time_taken2 = ((double)timer2) / CLOCKS_PER_SEC;
-	// printf("%f\n", time_taken2);
+
+	timer2 = clock() - timer2;
+	double time_taken2 = (((double)timer2)) / ((double)CLOCKS_PER_SEC);
+	 printf("%f\n", time_taken2);
 
 	printf("High entropy packets received!\n");
 	// close the socket
 	close(server_socket);
-	// double total_time = (time_taken2 - time_taken) * ((double)1000);
-	// printf("send time: %f\n", total_time);
+	double total_time = (time_taken2 - time_taken) * ((double)1000);
+	printf("send time: %f\n", total_time);
 	char *report;
 
-	uint64_t res = result2 - result1;
-
-	if( res> 100){
+	if( total_time> 100){
 		report = "compression detected";
 	}else{
 		report = "no compression detected";
