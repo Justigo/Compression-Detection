@@ -28,27 +28,59 @@ configurations cJSON_to_struct(char* text, configurations settings){
     json = cJSON_Parse(text);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"server_address");
+	if(item == NULL){
+		printf("Missing server IP.\n");
+		exit(1);
+	}
 	strcpy(settings.address,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"source_port");
+	if(item == NULL){
+		printf("Missing source port.\n");
+		exit(1);
+	}
 	strcpy(settings.source_port,item->valuestring);
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"TCP_port");
+	if(item == NULL){
+		printf("Missing TCP port.\n");
+		exit(1);
+	}
 	strcpy(settings.tcp_port,item->valuestring);
 
     item= cJSON_GetObjectItemCaseSensitive(json,"destination_port");
+	if(item == NULL){
+		printf("Missing UDP port.\n");
+		exit(1);
+	}
 	strcpy(settings.destination_port,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"size_of_payload");
-	strcpy(settings.payload,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.payload,"1000");
+	}else{
+		strcpy(settings.payload,item->valuestring);
+	}
 
     item = cJSON_GetObjectItemCaseSensitive(json,"number_of_udp_packets");
-	strcpy(settings.packets,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.packets,"6000");
+	}else{
+		strcpy(settings.packets,item->valuestring);
 
+	}
 	item = cJSON_GetObjectItemCaseSensitive(json,"intermit_time");
-	strcpy(settings.intermit_time,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.intermit_time,"15");
+	}else{
+		strcpy(settings.intermit_time,item->valuestring);
+	}
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
+	if(item == NULL){
+		printf("missing server IP");
+		exit(1);
+	}
 	strcpy(settings.server_ip,item->valuestring);
 
     cJSON_Delete(json);
@@ -124,6 +156,10 @@ configurations read_file(const char *filename)
 }
 
 int main(int argc, char **argv){
+	if(argc !=2){
+		printf("Missing config file");
+		exit(1);
+	}
 	
 	configurations settings = read_file(argv[1]);
 	int packet_length = atoi(settings.payload);

@@ -16,6 +16,10 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include<sys/stat.h>
+#include <errno.h>
+
+#define IP4_HDRLEN 20
+#define TCP_HDRLEN 20
 
 typedef struct 
 {  
@@ -38,42 +42,97 @@ configurations cJSON_to_struct(char* text, configurations settings){
     json = cJSON_Parse(text);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"server_address");
+	if(item == NULL){
+		printf("Missing server IP.\n");
+		exit(1);
+	}
 	strcpy(settings.address,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"source_port");
+	if(item == NULL){
+		printf("Missing source port.\n");
+		exit(1);
+	}
 	strcpy(settings.source_port,item->valuestring);
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"TCP_port");
+	if(item == NULL){
+		printf("Missing TCP port.\n");
+		exit(1);
+	}
 	strcpy(settings.tcp_port,item->valuestring);
 
     item= cJSON_GetObjectItemCaseSensitive(json,"destination_port");
+	if(item == NULL){
+		printf("Missing UDP port.\n");
+		exit(1);
+	}
 	strcpy(settings.destination_port,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"size_of_payload");
-	strcpy(settings.payload,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.payload,"1000");
+	}else{
+		strcpy(settings.payload,item->valuestring);
+	}
 
     item = cJSON_GetObjectItemCaseSensitive(json,"number_of_udp_packets");
-	strcpy(settings.packets,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.packets,"6000");
+	}else{
+		strcpy(settings.packets,item->valuestring);
 
+	}
 	item = cJSON_GetObjectItemCaseSensitive(json,"intermit_time");
-	strcpy(settings.intermit_time,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.intermit_time,"15");
+	}else{
+		strcpy(settings.intermit_time,item->valuestring);
+	}
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
+	if(item == NULL){
+		printf("missing server IP");
+		exit(1);
+	}
 	strcpy(settings.server_ip,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"ttl");
-    strcpy(settings.ttl,item->valuestring);
+	if(item == NULL){
+		strcpy(settings.ttl,"255");
+		exit(1);
+	}else{
+		strcpy(settings.ttl,item->valuestring);
+	}
 
     item = cJSON_GetObjectItemCaseSensitive(json,"head_port");
+	if(item == NULL){
+		printf("no head port");
+		exit(1);
+	}
     strcpy(settings.head_port,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"tail_port");
+	if(item == NULL){
+		printf("no tail port");
+		exit(1);
+	}
     strcpy(settings.tail_port,item->valuestring);
 
     cJSON_Delete(json);
     return settings;
 
 }
+
+struct pseudo_header{
+	u_int32_t source_address;
+	u_int32_t destination_address;
+	u_int8_t protocol;
+	u_int8_t placeholder;
+	u_int16_t tcp_length;
+}; 
+
+
 void set_address(int socket, int port, struct sockaddr_in *address,char * ip_address){
 	address->sin_family = AF_INET;
 	address->sin_port = htons(port);
@@ -86,8 +145,8 @@ char ** populate_array(char **array,char *payload,int length,int size){
 	for(unsigned short int j=0;j<size;j++){
 		array[j] = (char*)malloc(length*sizeof(char));
 		memcpy(array[j],payload,length);
-		array[j][0] = j%256;
-		array[j][1] = j/256;
+		array[j][0] = (uint8_t)(j & 0xff);
+		array[j][1] = (uint8_t)(j >> 8);
 	}
 
 	return array;
@@ -161,8 +220,7 @@ int * allocate_intmem(int len){
 }
 
 // Allocate memory for an array of chars.
-char *
-allocate_strmem (int len)
+char * allocate_strmem (int len)
 {
   void *tmp;
 
@@ -198,6 +256,7 @@ uint8_t * allocate_ustrmem (int len){
     exit (EXIT_FAILURE);
   }
 }
+
 uint16_t checksum (uint16_t *addr, int len)
 {
   int count = len;
@@ -228,7 +287,42 @@ uint16_t checksum (uint16_t *addr, int len)
   return (answer);
 }
 
+void copy_syn(struct ip iphdr,struct sockaddr_in* ipv4, char* data,struct tcphdr tcp_hdr, char* pseudogram,char* datagram, int seq_num,int dest_port,int pseudo_size, int raw_tcp,int packet_length){
+	iphdr.ip_sum = 0;
+
+	iphdr.ip_sum = checksum((unsigned short *) datagram,iphdr.ip_len);
+	tcp_hdr.th_seq = htonl(seq_num);
+	tcp_hdr.th_dport = htons(dest_port);
+
+	tcp_hdr.th_sum = 0;
+
+	memcpy(pseudogram+sizeof(struct pseudo_header), &tcp_hdr,sizeof(struct tcphdr));
+	memcpy(pseudogram + sizeof(struct pseudo_header) + sizeof(struct tcphdr),data,strlen(data));
+
+	tcp_hdr.th_sum = checksum((unsigned short*)pseudogram, pseudo_size);
+
+	memcpy(datagram + sizeof(struct ip), &tcp_hdr,sizeof(struct tcphdr));
+	if((raw_tcp = socket(PF_INET,SOCK_RAW,IPPROTO_TCP)) < 0){
+	 	perror("Failed to create tcp socket");
+	 	exit(1);
+	 }
+	int one = 1;
+	 if(setsockopt(raw_tcp,IPPROTO_IP,IP_HDRINCL,&one,sizeof(one)) <0){
+	 	perror("Error setting IP_HDRINCL");
+	 	exit(0);
+	 }
+
+	if(sendto(raw_tcp,datagram,packet_length,0,(struct sockaddr *)ipv4,sizeof(struct sockaddr_in)) < 0){
+	 	perror("sendto failed");
+	 }
+	 close(raw_tcp);
+}
+
 int main(int argc, char **argv){
+	if(argc !=2){
+		printf("Missing config file");
+		exit(1);
+	}
 	int i, status, datalen, frame_length, sd, bytes, *ip_flags;
 	char *interface, *target;
 	uint8_t *data, *src_mac, *dst_mac, *ether_frame;
@@ -251,7 +345,7 @@ int main(int argc, char **argv){
     int head_port = atoi(settings.head_port);
     int tail_port = atoi(settings.tail_port);
     char * server_ip = settings.server_ip;
-	char * client_ip = "192.168.86.248";
+	char * client_ip = "192.168.68.112";
 
 	//Allocate memory for various arrays
 	src_mac = allocate_ustrmem(6);
@@ -278,6 +372,177 @@ int main(int argc, char **argv){
 	close(sd);
 
 	memcpy(src_mac,ifr.ifr_hwaddr.sa_data, 6);
+	printf("MAC address for interface %s is \n", interface);
+	for(int i=0;i<5;i++){
+		printf("%02x\n", src_mac[i]);
+	}
+	printf("%02x\n",src_mac[5]);
+	memset(&device, 0, sizeof(device));
+	if ((device.sll_ifindex = if_nametoindex(interface)==0)){
+		perror("if_nametoindex() failed to obtain interface index");
+		exit (EXIT_FAILURE);
+	}
+
+	//set destination MAC address
+	dst_mac[0] = 0xe4;
+	dst_mac[1] = 0xc3;
+	dst_mac[2] = 0x2a;
+	dst_mac[3] = 0x07;
+	dst_mac[4] = 0x18;
+	dst_mac[5] = 0xca;
+
+	//fill out hints for getaddrinfo().
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = hints.ai_flags | AI_CANONNAME;
+
+	//Resolve target using getaddrinfo()
+	if((status = getaddrinfo(server_ip,NULL, &hints,&res))!=0){
+		fprintf(stderr,"getaddrinfo() failed: %s\n", gai_strerror(status));
+		exit(EXIT_FAILURE);
+	}
+	ipv4 = (struct sockaddr_in *)res->ai_addr;
+	tmp = &(ipv4->sin_addr);
+	if(inet_ntop (AF_INET, tmp, server_ip, INET_ADDRSTRLEN) == NULL){
+		status = errno;
+		fprintf(stderr,"inet_ntop() failed.\nError message: %s", strerror(status));
+		exit(EXIT_FAILURE);
+	}
+	freeaddrinfo(res);
+
+
+	//Fill out sockaddr_ll
+	device.sll_family = AF_PACKET;
+	device.sll_protocol = htons(ETH_P_IP);
+	memcpy (device.sll_addr, dst_mac, 6);
+	device.sll_halen=6;
+
+	//TCP data 
+	data = "Head";
+
+	//IPv4 header
+	iphdr.ip_hl = IP4_HDRLEN/sizeof(uint32_t);
+
+	//Internet Protocol version (4 bits): IPv4
+	iphdr.ip_v = 4;
+
+	//Type of service (8 bits)
+	iphdr.ip_tos = 0;
+
+	//ID sequence number(16 bits): unused, since single datagram
+	iphdr.ip_id = htons(0);
+
+	//Flags, and fragmentation offset (3, 13 bits):
+
+	//Zero (1 bit)
+	ip_flags[0] = 0;
+
+	//Do not fragment flag (1 bit)
+	ip_flags[1] = 0;
+
+	//More fragments following flag (1 bit)
+	ip_flags[2] = 0;
+
+	//Fragmentation offset (13 bits)
+	ip_flags[3] = 0;
+
+	iphdr.ip_off = htons((ip_flags[0] << 15)
+						+(ip_flags[1] << 14)
+						+(ip_flags[2] << 13)
+						+ ip_flags[3]);
+
+	//Time-to-live (8 bits): default to maximum value
+	iphdr.ip_ttl = ttl;
+
+	// Transport layer protocol (8 bits): 
+	iphdr.ip_p = IPPROTO_TCP;
+
+	//Source IPv4 address (32 bits)
+	if((status = inet_pton(AF_INET, client_ip,&(iphdr.ip_dst)))!=1){
+		fprintf(stderr, "inet_pton() failed.\nError message: %s",strerror(status));
+		exit(EXIT_FAILURE);
+	}
+
+	//Destination IPv4 address (32 bits)
+	if((status = inet_pton(AF_INET, server_ip, &(iphdr.ip_dst)))!=1){
+		fprintf(stderr,"inet_pton() falied.\nError message: %s",strerror(status));
+		exit(EXIT_FAILURE);
+	}
+
+	char datagram[4096];
+	memset(datagram,0,4096);
+	memcpy(datagram, &iphdr, sizeof(struct iphdr));
+	memcpy(datagram + sizeof(struct iphdr) + sizeof(struct tcphdr), data, strlen(data));
+	
+	iphdr.ip_sum = 0;
+	iphdr.ip_sum = checksum((uint16_t *)&iphdr, IP4_HDRLEN);
+
+	memset(&tcp_hdr, 0, sizeof(tcp_hdr));
+
+	tcp_hdr.th_sport = htons(source_port);
+	tcp_hdr.th_dport = htons(head_port);
+	tcp_hdr.th_seq = htonl(0);
+	tcp_hdr.th_ack = htonl(0);
+	tcp_hdr.th_off = 5;
+
+	int* tcp_flags = allocate_intmem(6);
+	tcp_hdr.th_flags = 0;//set inital tchdr flags
+	tcp_hdr.th_flags +=TH_SYN;
+
+	tcp_hdr.th_win = htons(5840);
+
+	tcp_hdr.th_sum = 0;
+	tcp_hdr.th_urp = htons(0);
+
+	//copy tcp header int datagram
+	memcpy(datagram + sizeof(struct iphdr) , &tcp_hdr, sizeof(struct tcphdr));
+
+	char * pseudogram;
+	struct pseudo_header psh;
+
+	//populate pseudo ip header
+
+	psh.source_address = inet_addr(client_ip);
+	psh.destination_address = ipv4->sin_addr.s_addr;
+	psh.placeholder = 0;
+	psh.protocol = IPPROTO_TCP;
+	psh.tcp_length = htons(sizeof(struct tcphdr) + strlen(data));
+	
+	int pseudo_size = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(data);
+	pseudogram = malloc(pseudo_size);
+
+	//copy data to pseudogram
+	memcpy(pseudogram, (char*) &psh,sizeof(struct pseudo_header));
+	memcpy(pseudogram + sizeof(struct pseudo_header) , &tcp_hdr, sizeof(struct tcphdr));
+	memcpy(pseudogram + sizeof(struct pseudo_header) + sizeof(struct tcphdr), data,strlen(data));
+
+	//calculate tcp checksum
+	tcp_hdr.th_sum = checksum((unsigned short*) pseudogram, pseudo_size);
+
+	//frame length: IP header + TCP header + data
+	int tcp_packet_length = IP4_HDRLEN + TCP_HDRLEN + datalen;
+
+	int raw_tcp;
+
+	if((raw_tcp = socket(PF_INET, SOCK_RAW, IPPROTO_TCP)) < 0){
+		perror("Failed to create raw socket");
+		exit(1);
+	}
+
+	//set socket to include ip header
+
+	int one = 1;
+	if(setsockopt(raw_tcp,IPPROTO_IP, IP_HDRINCL,&one,sizeof(one))<0){
+		perror("Error seeting IP header");
+		exit(0);
+	}
+
+	if(sendto(raw_tcp, datagram,tcp_packet_length, 0, (struct sockaddr *)ipv4, sizeof(struct sockaddr_in)) <0){
+		perror("sendto failed");
+	}
+
+	close(raw_tcp);
 
     int network_socket;
 	//Sock stream =TCP
@@ -328,12 +593,55 @@ int main(int argc, char **argv){
 		}
 		
 	}
+
+	// memset(data,0,IP_MAXPACKET);
+	data = "tail1";
+
+	struct ip iphdr_2;
+	memcpy(&iphdr_2, &iphdr, sizeof(struct ip));
+
+	char datagram_2[4096];
+	memset(datagram_2,0,4096);
+	memcpy(datagram_2,&iphdr_2,sizeof(struct ip));
+	memcpy(datagram_2+ sizeof(struct ip) + sizeof(struct tcphdr),data,strlen(data));
+
+	struct tcphdr tcphdr_2;
+	memcpy(&tcphdr_2,&tcp_hdr, sizeof(struct tcphdr));
+
+	copy_syn(iphdr_2,ipv4,data,tcphdr_2,pseudogram,datagram_2,1,tail_port,pseudo_size,raw_tcp,tcp_packet_length);
+
+	 data = "head2";
+	 struct ip iphdr_3;
+	 memcpy(&iphdr_3,&iphdr,sizeof(struct ip));
+
+	 char datagram_3[4096];
+	 memset(datagram_3,0,4096);
+	 memcpy(datagram_3,&iphdr_3,sizeof(struct ip));
+	 memcpy(datagram_3 + sizeof(struct ip) + sizeof(struct tcphdr),data,strlen(data));
+
+	 struct tcphdr tcphdr_3;
+	 memcpy(&tcphdr_3,&tcp_hdr, sizeof(struct tcphdr));
+
+	 copy_syn(iphdr_3,ipv4,data,tcphdr_3,pseudogram,datagram_3,2,head_port,pseudo_size,raw_tcp,tcp_packet_length);
 	
 	for(int i =0;i<train_size;i++){
 		if(sendto(network_socket,high_train2[i],packet_length,MSG_CONFIRM,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
 	}
+
+	data = "tail2";
+	struct ip iphdr_4;
+	memcpy(&iphdr_4,&iphdr,sizeof(struct ip));
+
+	char datagram_4[4096];
+	memset(datagram_4,0,4096);
+	memcpy(datagram_4,&iphdr_4,sizeof(struct ip));
+	memcpy(datagram_4 + sizeof(struct ip) + sizeof(struct tcphdr),data,strlen(data));
+
+	struct tcphdr tcphdr_4;
+	memcpy(&tcphdr_4,&tcp_hdr, sizeof(struct tcphdr));
+	copy_syn(iphdr_4,ipv4,data,tcphdr_4,pseudogram,datagram_4,3,tail_port,pseudo_size,raw_tcp,tcp_packet_length);
 
 	printf("packets sent!\n");
 	
@@ -344,7 +652,6 @@ int main(int argc, char **argv){
 	free_array(high_train2,train_size);
 	close(network_socket);
     // close(raw_socket);
-
 
     return 0;
 
