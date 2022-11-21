@@ -12,7 +12,6 @@
 
 typedef struct 
 {  
-     char address[256];  
      char source_port[256];  
      char destination_port[256]; 
 	 char tcp_port[256]; 
@@ -20,19 +19,13 @@ typedef struct
      char packets[256];  
 	 char intermit_time[256]; 
 	 char server_ip[256];
+	 char client_ip[256];
 }configurations;  
 
 configurations cJSON_to_struct(char* text, configurations settings){
     cJSON *json,*item;
     int i =0;
     json = cJSON_Parse(text);
-
-    item = cJSON_GetObjectItemCaseSensitive(json,"server_address");
-	if(item == NULL){
-		printf("Missing server IP.\n");
-		exit(1);
-	}
-	strcpy(settings.address,item->valuestring);
 
     item = cJSON_GetObjectItemCaseSensitive(json,"source_port");
 	if(item == NULL){
@@ -76,6 +69,13 @@ configurations cJSON_to_struct(char* text, configurations settings){
 		strcpy(settings.intermit_time,item->valuestring);
 	}
 
+	item = cJSON_GetObjectItemCaseSensitive(json,"client_ip");
+	if(item == NULL){
+		printf("missing client IP");
+		exit(1);
+	}
+	strcpy(settings.client_ip,item->valuestring);
+
 	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
 	if(item == NULL){
 		printf("missing server IP");
@@ -100,9 +100,9 @@ char ** populate_array(char **array,char *payload,int length,int size){
 	for(unsigned short int j=0;j<size;j++){
 		array[j] = (char*)malloc(length*sizeof(char));
 		memcpy(array[j],payload,length);
-		array[j][0] = j%256;
-		array[j][1] = j/256;
-	}
+		array[j][0] = (uint8_t)(j & 0xff);
+		array[j][1] = (uint8_t)(j >> 8);
+	} 
 
 	return array;
 }
@@ -176,7 +176,7 @@ int main(int argc, char **argv){
 	// // give the address for the socket
 	struct sockaddr_in probe_address;
 	char * server_ip = settings.server_ip;
-	char * client_ip = "192.168.86.248";
+	char * client_ip = settings.client_ip;
 	memset(&probe_address,0,sizeof(probe_address));
 	set_address(probe_socket,tcp_port,&probe_address,server_ip);
 
@@ -187,7 +187,7 @@ int main(int argc, char **argv){
 		printf("Cannot Connect to server.\n");
 	}
 
-	send(probe_socket, (char *)settings.address,sizeof(settings.address),0);
+	send(probe_socket, (char *)settings.server_ip,sizeof(settings.server_ip),0);
 	send(probe_socket, (char *)settings.packets,sizeof(settings.packets),0);
 	send(probe_socket,(char *)settings.destination_port,sizeof(settings.destination_port),0);
 

@@ -15,7 +15,10 @@
 #include "cJSON.h"
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <net/ethernet.h>
 #include<sys/stat.h>
+#include <ctype.h>
+#include <time.h>
 #include <errno.h>
 
 #define IP4_HDRLEN 20
@@ -287,7 +290,7 @@ uint16_t checksum (uint16_t *addr, int len)
   return (answer);
 }
 
-void copy_syn(struct ip iphdr,struct sockaddr_in* ipv4, char* data,struct tcphdr tcp_hdr, char* pseudogram,char* datagram, int seq_num,int dest_port,int pseudo_size, int raw_tcp,int packet_length){
+void process_syn(struct ip iphdr,struct sockaddr_in* ipv4, char* data,struct tcphdr tcp_hdr, char* pseudogram,char* datagram, int seq_num,int dest_port,int pseudo_size, int raw_tcp,int packet_length){
 	iphdr.ip_sum = 0;
 
 	iphdr.ip_sum = checksum((unsigned short *) datagram,iphdr.ip_len);
@@ -302,20 +305,10 @@ void copy_syn(struct ip iphdr,struct sockaddr_in* ipv4, char* data,struct tcphdr
 	tcp_hdr.th_sum = checksum((unsigned short*)pseudogram, pseudo_size);
 
 	memcpy(datagram + sizeof(struct ip), &tcp_hdr,sizeof(struct tcphdr));
-	if((raw_tcp = socket(PF_INET,SOCK_RAW,IPPROTO_TCP)) < 0){
-	 	perror("Failed to create tcp socket");
-	 	exit(1);
-	 }
-	int one = 1;
-	 if(setsockopt(raw_tcp,IPPROTO_IP,IP_HDRINCL,&one,sizeof(one)) <0){
-	 	perror("Error setting IP_HDRINCL");
-	 	exit(0);
-	 }
 
 	if(sendto(raw_tcp,datagram,packet_length,0,(struct sockaddr *)ipv4,sizeof(struct sockaddr_in)) < 0){
 	 	perror("sendto failed");
 	 }
-	 close(raw_tcp);
 }
 
 int main(int argc, char **argv){
@@ -357,6 +350,7 @@ int main(int argc, char **argv){
 	ip_flags = allocate_intmem(4);
 
 	strcpy(interface,"enp0s3");
+
 
 	if((sd = socket(AF_INET, SOCK_RAW,IPPROTO_RAW)) < 0){
 		perror("socket() failed to get socket descriptor for using ioctl() ");
@@ -542,8 +536,6 @@ int main(int argc, char **argv){
 		perror("sendto failed");
 	}
 
-	close(raw_tcp);
-
     int network_socket;
 	//Sock stream =TCP
 	//zero equals default protocol
@@ -588,6 +580,7 @@ int main(int argc, char **argv){
 
 	//start to send the low and high entropy data
 	for(int b = 0;b<train_size;b++){
+		usleep(100);
 		if(sendto(network_socket,low_train2[b],packet_length,MSG_CONFIRM,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
@@ -608,7 +601,7 @@ int main(int argc, char **argv){
 	struct tcphdr tcphdr_2;
 	memcpy(&tcphdr_2,&tcp_hdr, sizeof(struct tcphdr));
 
-	copy_syn(iphdr_2,ipv4,data,tcphdr_2,pseudogram,datagram_2,1,tail_port,pseudo_size,raw_tcp,tcp_packet_length);
+	process_syn(iphdr_2,ipv4,data,tcphdr_2,pseudogram,datagram_2,1,tail_port,pseudo_size,raw_tcp,tcp_packet_length);
 
 	 data = "head2";
 	 struct ip iphdr_3;
@@ -622,9 +615,10 @@ int main(int argc, char **argv){
 	 struct tcphdr tcphdr_3;
 	 memcpy(&tcphdr_3,&tcp_hdr, sizeof(struct tcphdr));
 
-	 copy_syn(iphdr_3,ipv4,data,tcphdr_3,pseudogram,datagram_3,2,head_port,pseudo_size,raw_tcp,tcp_packet_length);
+	 process_syn(iphdr_3,ipv4,data,tcphdr_3,pseudogram,datagram_3,2,head_port,pseudo_size,raw_tcp,tcp_packet_length);
 	
 	for(int i =0;i<train_size;i++){
+		usleep(100);
 		if(sendto(network_socket,high_train2[i],packet_length,MSG_CONFIRM,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
 			perror("error");
 		}
@@ -641,7 +635,7 @@ int main(int argc, char **argv){
 
 	struct tcphdr tcphdr_4;
 	memcpy(&tcphdr_4,&tcp_hdr, sizeof(struct tcphdr));
-	copy_syn(iphdr_4,ipv4,data,tcphdr_4,pseudogram,datagram_4,3,tail_port,pseudo_size,raw_tcp,tcp_packet_length);
+	process_syn(iphdr_4,ipv4,data,tcphdr_4,pseudogram,datagram_4,3,tail_port,pseudo_size,raw_tcp,tcp_packet_length);
 
 	printf("packets sent!\n");
 	
@@ -651,7 +645,7 @@ int main(int argc, char **argv){
 	free_array(low_train2,train_size);
 	free_array(high_train2,train_size);
 	close(network_socket);
-    // close(raw_socket);
+	close(raw_tcp);
 
     return 0;
 
