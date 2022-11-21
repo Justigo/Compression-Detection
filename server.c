@@ -13,11 +13,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-typedef struct
-{
-   int tcp_port;
-} server_init;
-
 void cleanExit(){
 	exit(0);
 }
@@ -45,8 +40,6 @@ int get_port(const char *filename)
 {
 	FILE *fp;
 
-	server_init port;
-
 	size_t size = get_file_size(filename);
 	if (size == 0)
 	{
@@ -69,9 +62,13 @@ int get_port(const char *filename)
 	cJSON *json, *item;
 	json = cJSON_Parse(buffer);
 	item = cJSON_GetObjectItemCaseSensitive(json, "TCP_port");
-	port.tcp_port = item->valueint;
+	if(item == NULL){
+		printf("TCP port information missing\n");
+		exit(1);
+	}
+	int port = item->valueint;
 	free(buffer);
-	return port.tcp_port;
+	return port;
 }
 
 int main(int argc, char **argv)
@@ -146,34 +143,25 @@ int main(int argc, char **argv)
 	printf("Receiving packets...\n");
 
 	clock_t timer;
-
+	timer = clock();
 	double time_taken = ((double)timer) / CLOCKS_PER_SEC;
 	for (int i = 0; i < train; i++)
 	{
 		recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
-		if(i==0){
-			timer = clock();
-		}
 	}
 	timer = clock()-timer;
 	printf("low entropy packets received.\n");
 
-
-	// timer = clock() - timer;
-	// double time_taken = ((double)timer) / CLOCKS_PER_SEC;
-
 	clock_t timer2;
+	timer2 = clock();
 	printf("Receiving high entropy packets...\n");
 	for (int i = 0; i < train; i++)
 	{
 		recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
-		if(i==0 ){
-			timer2 = clock();
-		}
 	}
 
 	timer2 = clock() - timer2;
-	double time_taken2 = (((double)timer2)) / ((double)CLOCKS_PER_SEC);
+	double time_taken2 = (((double)timer2)) / CLOCKS_PER_SEC;
 	 printf("%f\n", time_taken2);
 
 	printf("High entropy packets received!\n");
@@ -182,11 +170,16 @@ int main(int argc, char **argv)
 	double total_time = (time_taken2 - time_taken) * ((double)1000);
 	printf("send time: %f\n", total_time);
 	char *report;
+	report = (char *)malloc(sizeof(char)*256);
 
-	if( total_time> 100){
-		report = "compression detected";
+	if(report == NULL){
+		printf("error in allocating size for report\n");
+	}
+
+	if( total_time>(double)100){
+		strcpy(report,"compression detected");
 	}else{
-		report = "no compression detected";
+		strcpy(report,"no compression detected");
 	}
 
 	int postProbe_socket;
@@ -203,13 +196,13 @@ int main(int argc, char **argv)
 	setsockopt(postProbe_socket, SOL_SOCKET, SO_REUSEADDR,&value,sizeof(val));
 
 	if(bind(postProbe_socket, (struct sockaddr *)&post_probe_address,sizeof(post_probe_address))<0){
-		perror("skill issue");
+		perror("error in post probing phase");
 	};
 	listen(postProbe_socket, 5);
-	char sent_time[256]="balls";
 
 	client_socket = accept(postProbe_socket,NULL,NULL);
-	send(client_socket,(char *)report,sizeof(sent_time),0);
+	send(client_socket,report,256,0);
 	close(postProbe_socket);
+	free(report);
 	return 0;
 }
