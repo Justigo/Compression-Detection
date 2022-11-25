@@ -7,6 +7,7 @@ The goal of this project is to be able to detect network compression between two
 TODO: how to compile project
 
 ## Import Notes
+The first part is fully functional with the client being able to send the determinante amount of udp packets based on the information from the configuration file. The server is able to receive the packets, as well as calculate the time it takes for both the high and low entropy data to be received. In addition, the server is able to determine if there is compression detected or not, based on a certain threshhold for time taken to send the packets. It is compared to 100 milliseconds, where if it exceeds 100 milliseconds, there will be compression.
 
 TODO: libraries needed to be added
 
