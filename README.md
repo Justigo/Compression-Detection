@@ -7,12 +7,13 @@ The goal of this project is to be able to detect network compression between two
 TODO: how to compile project
 * To compile the client and server application run these two commands.\
 
- ** gcc cJSON.c client.c -o client.
- ** gcc cJSON.c server.c -o server.
+ '''gcc cJSON.c client.c -o client.
+ 
+ '''gcc cJSON.c server.c -o server.
  
  * Next, to run the program you will have to call the file name plus the config file so it will be
  
- ** ./server myconfig.json
+  ./server myconfig.json
  ** ./client myconfig.json
 
 
