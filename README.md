@@ -5,7 +5,7 @@ The goal of this project is to be able to detect network compression between two
 ## Building
 
 TODO: how to compile project
-* To compile the client and server application run these two commands.\
+* To compile the client and server application run these two commands:
 
 ```
 gcc cJSON.c client.c -o client.
