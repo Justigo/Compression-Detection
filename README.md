@@ -51,7 +51,12 @@ Sometimes things can happen that will make it so that there are errors in the pr
 * Make sure that the config file has the correct information that you want for the ports and the IP addresses
 * For part 1 make sure the server is running first.
 * Make sure that the VM is set to the correct connection profile with the corresponding address
-* Make sure that the MAC address and interface is set correctly. To check run ``` arp-n```
+* Make sure that the MAC address and interface is set correctly. To check the destination MAC address, run ``` arp -n```. To check if the interface is set correctly check by running ```route -n```
+
+## Contact Information
+
+Github:tlin41390
+email:(tlin41@dons.usfca.edu)
 
 
 
