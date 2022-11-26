@@ -55,8 +55,9 @@ Sometimes things can happen that will make it so that there are errors in the pr
 
 ## Contact Information
 
-Github:tlin41390
-email:(tlin41@dons.usfca.edu)
+Github:(https://github.com/tlin41390)
+
+Email:(tlin41@dons.usfca.edu)
 
 
 
