@@ -88,6 +88,7 @@ configurations cJSON_to_struct(char* text, configurations settings){
 
 }
 
+//helper function to set the socket address
 void set_address(int socket, int port, struct sockaddr_in *address,char * ip_address){
 	address->sin_family = AF_INET;
 	address->sin_port = htons(port);
@@ -161,6 +162,7 @@ int main(int argc, char **argv){
 		exit(1);
 	}
 	
+	//read and parse the json struct
 	configurations settings = read_file(argv[1]);
 	int packet_length = atoi(settings.payload);
 	int train_size = atoi(settings.packets);
@@ -169,6 +171,7 @@ int main(int argc, char **argv){
 	int tcp_port = atoi(settings.tcp_port);
 	int intermit_time = atoi(settings.intermit_time);
 
+	//preprobing phase for sending the information to the config file
 	printf("Starting pre probing phase...\n");
 	int probe_socket;
 	probe_socket = socket(AF_INET,SOCK_STREAM, 0); 

@@ -39,6 +39,7 @@ typedef struct
      char tail_port[256];
 }configurations;
 
+//get the information from a config file and parse it to a struct
 configurations cJSON_to_struct(char* text, configurations settings){
     cJSON *json,*item;
     int i =0;
@@ -291,12 +292,13 @@ uint16_t checksum (uint16_t *addr, int len)
 }
 
 void process_syn(struct ip iphdr,struct sockaddr_in* ipv4, char* data,struct tcphdr tcp_hdr, char* pseudogram,char* datagram, int seq_num,int dest_port,int pseudo_size, int raw_tcp,int packet_length){
+	//recalculate the ipheader checksum
 	iphdr.ip_sum = 0;
-
 	iphdr.ip_sum = checksum((unsigned short *) datagram,iphdr.ip_len);
+
+	//update the tcp sequence number and destination port
 	tcp_hdr.th_seq = htonl(seq_num);
 	tcp_hdr.th_dport = htons(dest_port);
-
 	tcp_hdr.th_sum = 0;
 
 	memcpy(pseudogram+sizeof(struct pseudo_header), &tcp_hdr,sizeof(struct tcphdr));
@@ -464,6 +466,7 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 
+	//set the datagram for tcp packet
 	char datagram[4096];
 	memset(datagram,0,4096);
 	memcpy(datagram, &iphdr, sizeof(struct iphdr));
@@ -474,6 +477,7 @@ int main(int argc, char **argv){
 
 	memset(&tcp_hdr, 0, sizeof(tcp_hdr));
 
+	//fill out the tcp headers
 	tcp_hdr.th_sport = htons(source_port);
 	tcp_hdr.th_dport = htons(head_port);
 	tcp_hdr.th_seq = htonl(0);
