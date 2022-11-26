@@ -31,10 +31,7 @@ gcc cJSON.c server.c -o server.
 
 
 ## Import Notes
-The first part is fully functional with the client being able to send the determinante amount of udp packets based on the information from the configuration file. The server is able to receive the packets, as well as calculate the time it takes for both the high and low entropy data to be received. In addition, the server is able to determine if there is compression detected or not, based on a certain threshhold for time taken to send the packets. It is compared to 100 milliseconds, where if it exceeds 100 milliseconds, there will be compression.
+The first part is fully functional with the client being able to send the determinante amount of udp packets based on the information from the configuration file. The server is able to receive the packets, as well as calculate the time it takes for both the high and low entropy data to be received. In addition, the server is able to determine if there is compression detected or not, based on a certain threshhold for time taken to send the packets. It is compared to 100 milliseconds, where if it exceeds 100 milliseconds, there will be compression. 
 
-TODO: libraries needed to be added
+What has not been done is capturing the RST packets and timing it for part 2. The only thing that is happening for project 2 is sending the head and tail packets for 
 
-## Screenshots
-
-TODO: Project shown working
