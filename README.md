@@ -4,18 +4,26 @@ The goal of this project is to be able to detect network compression between two
 
 To edit the configurations for the program go to the config file. In the config file there are many things you can edit. Here is a list of things that you are able to modify for the project:
 
-* tcp port
-* udp port
-* client ip address
-* server ip address
+* TCP port
+* Source Port
+* Destination Port
+* Client IP Address
+* Server IP Address
 * TTL(Time to Live)
 * Itermit Time
-* Packet length
-* Packet Train
+* Size of The Payload
+* Number of Packets
+
+For the standalone part of the project there are two additional parameters that you will need to account for:
+ 
+* The Head Port
+* The Tail Port
+
 
 
 ## Building
 
+* To have the first part running, we are going to need two VMs that are linked together.
 * To compile the client and server application run these two commands:
 
 ```
@@ -23,7 +31,7 @@ gcc cJSON.c client.c -o client.
  
 gcc cJSON.c server.c -o server.
 ```
- 
+ * For the standalone application we only need one VM that can be run on the standard connection.
  * Next, to run the program you will have to call the file name plus the config file so it will be
 ```
 ./server myconfig.json
