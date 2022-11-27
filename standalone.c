@@ -484,11 +484,13 @@ int main(int argc, char **argv){
 	tcp_hdr.th_ack = htonl(0);
 	tcp_hdr.th_off = 5;
 
+	//set the flag for SYN packet
 	int* tcp_flags = allocate_intmem(6);
 	tcp_hdr.th_flags = 0;//set inital tchdr flags
 	tcp_hdr.th_flags +=TH_SYN;
 
-	tcp_hdr.th_win = htons(5840);
+	//set the window size for the TCP packet
+	tcp_hdr.th_win = htons(65535);
 
 	tcp_hdr.th_sum = 0;
 	tcp_hdr.th_urp = htons(0);
@@ -544,9 +546,6 @@ int main(int argc, char **argv){
 	//Sock stream =TCP
 	//zero equals default protocol
 	network_socket = socket(AF_INET,SOCK_DGRAM, 0);
-	if(socket == -1){
-		perror("error in creating socket");
-	} 
 	
 	// give the address for the udp socket for both server and client.
     struct sockaddr_in server_address, client_address;
@@ -591,7 +590,6 @@ int main(int argc, char **argv){
 		
 	}
 
-	// memset(data,0,IP_MAXPACKET);
 	data = "tail1";
 
 	struct ip iphdr_2;
