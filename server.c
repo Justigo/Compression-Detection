@@ -13,11 +13,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-typedef struct
-{
-	int tcp_port;
-} server_init;
-
 void cleanExit(){
 	exit(0);
 }
@@ -45,8 +40,6 @@ int get_port(const char *filename)
 {
 	FILE *fp;
 
-	server_init port;
-
 	size_t size = get_file_size(filename);
 	if (size == 0)
 	{
@@ -69,9 +62,13 @@ int get_port(const char *filename)
 	cJSON *json, *item;
 	json = cJSON_Parse(buffer);
 	item = cJSON_GetObjectItemCaseSensitive(json, "TCP_port");
-	port.tcp_port = item->valueint;
+	if(item == NULL){
+		printf("TCP port information missing\n");
+		exit(1);
+	}
+	int port = item->valueint;
 	free(buffer);
-	return port.tcp_port;
+	return port;
 }
 
 int main(int argc, char **argv)
@@ -144,48 +141,54 @@ int main(int argc, char **argv)
 	len = sizeof(client_address);
 
 	printf("Receiving packets...\n");
-	struct timespec start1,stop1,start2,stop2;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start1);
+
+	clock_t start_timer,end_timer;
+
 	for (int i = 0; i < train; i++)
 	{
-		recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
+		int packets = recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
+		if(i==0 && packets > 0){
+			start_timer = clock();
+		}
 	}
-	clock_gettime(CLOCK_MONOTONIC_RAW, &stop1);
-	uint64_t result1 = (stop1.tv_sec - start1.tv_sec) * 1000000 + (stop1.tv_nsec - start1.tv_nsec) / 1000;
+	end_timer = clock();
+	//calculate the total time and convert it to milliseconds
+	double total_time = (((double)end_timer) - ((double)start_timer))/((double)CLOCKS_PER_SEC);
+	double low_entropy_time = total_time * 1000;
+	printf("low entropy time %f\n",low_entropy_time);
 	printf("low entropy packets received.\n");
 
-
-	// timer = clock() - timer;
-	// double time_taken = ((double)timer) / CLOCKS_PER_SEC;
-
 	printf("Receiving high entropy packets...\n");
-	clock_t timer2;
-	// timer2 = clock();
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start2);
+	start_timer = clock();
 	for (int i = 0; i < train; i++)
 	{
-		recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
+		int packets = recvfrom(server_socket, bytes, sizeof(bytes), MSG_WAITALL, (struct sockaddr *)&client_address, &len);
+		if(i==0 && packets > 0){
+			start_timer = clock();
+		}
 	}
-	uint64_t result2 = (stop2.tv_sec - start2.tv_sec) * 1000000 + (stop2.tv_nsec - start2.tv_nsec) / 1000;
-	// timer2 = clock() - timer2;
-	// double time_taken2 = ((double)timer2) / CLOCKS_PER_SEC;
-	// printf("%f\n", time_taken2);
-
+	end_timer = clock();
+	total_time = (((double)end_timer) - ((double)start_timer))/((double)CLOCKS_PER_SEC);
+	double high_entropy_time = total_time * 1000;
+	printf("high_entropy_time %f\n",high_entropy_time);
 	printf("High entropy packets received!\n");
 	// close the socket
 	close(server_socket);
-	// double total_time = (time_taken2 - time_taken) * ((double)1000);
-	// printf("send time: %f\n", total_time);
+	//create the report on whether there is compression or not
 	char *report;
+	report = (char *)malloc(sizeof(char)*256);
 
-	uint64_t res = result2 - result1;
-
-	if( res> 100){
-		report = "compression detected";
-	}else{
-		report = "no compression detected";
+	if(report == NULL){
+		printf("error in allocating size for report\n");
 	}
 
+	if( high_entropy_time-low_entropy_time>(double)100){
+		strcpy(report,"compression detected");
+	}else{
+		strcpy(report,"no compression detected");
+	}
+
+	//create the tcp socket for post probing
 	int postProbe_socket;
 	postProbe_socket = socket(AF_INET,SOCK_STREAM,0);
 	
@@ -194,18 +197,20 @@ int main(int argc, char **argv)
 	post_probe_address.sin_port = htons(preprobe_port);
 	post_probe_address.sin_addr.s_addr = inet_addr("192.168.86.249");
 
+	//check to see if there is compression or not in the program
 	if(postProbe_socket == -1){
 		perror("no socket");
 	}
 	setsockopt(postProbe_socket, SOL_SOCKET, SO_REUSEADDR,&value,sizeof(val));
 
 	if(bind(postProbe_socket, (struct sockaddr *)&post_probe_address,sizeof(post_probe_address))<0){
-		perror("failed to bind");
+		perror("error in post probing phase");
 	};
 	listen(postProbe_socket, 5);
 
 	client_socket = accept(postProbe_socket,NULL,NULL);
-	send(client_socket,(char *)report,sizeof(report),0);
+	send(client_socket,report,256,0);
 	close(postProbe_socket);
+	free(report);
 	return 0;
 }
