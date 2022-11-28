@@ -244,7 +244,7 @@ int main(int argc, char **argv){
 		usleep(100);
 		
 	}
-	sleep(15);
+	sleep(intermit_time);
 	
 	for(int i =0;i<train_size;i++){
 		if(sendto(network_socket,high_train2[i],packet_length,0,(const struct sockaddr*)&server_address,sizeof(server_address))<0){
