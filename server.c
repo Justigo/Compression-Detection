@@ -13,6 +13,12 @@
 #include <sys/stat.h>
 #include <signal.h>
 
+typedef struct
+{
+	char tcp_port[256];
+	char server_ip[256];
+}configurations;
+
 void cleanExit(){
 	exit(0);
 }
@@ -36,7 +42,8 @@ size_t get_file_size(const char *filepath)
 	}
 }
 
-int get_port(const char *filename)
+//method to get the port number for tcp and the server address
+configurations get_config(const char *filename,configurations settings)
 {
 	FILE *fp;
 
@@ -66,9 +73,15 @@ int get_port(const char *filename)
 		printf("TCP port information missing\n");
 		exit(1);
 	}
-	int port = item->valueint;
+	strcpy(settings.tcp_port,item->valuestring);
+	item = cJSON_GetObjectItemCaseSensitive(json,"server_ip");
+	if(item == NULL){
+		printf("Server IP missing\n");
+		exit(1);
+	}
+	strcpy(settings.server_ip,item->valuestring);
 	free(buffer);
-	return port;
+	return settings;
 }
 
 int main(int argc, char **argv)
@@ -76,7 +89,8 @@ int main(int argc, char **argv)
 	char server_message[256];
 	char udp_train[256];
 	char destination_port[256];
-	int preprobe_port = get_port(argv[1]);
+	configurations settings;
+	settings = get_config(argv[1],settings);
 
 	// server socket created.
 	int probe_socket;
@@ -86,8 +100,8 @@ int main(int argc, char **argv)
 	// define server address
 	struct sockaddr_in probe_address;
 	probe_address.sin_family = AF_INET;
-	probe_address.sin_port = htons(preprobe_port);
-	probe_address.sin_addr.s_addr = inet_addr("192.168.86.249");
+	probe_address.sin_port = htons(atoi(settings.tcp_port));
+	probe_address.sin_addr.s_addr = inet_addr(settings.server_ip);
 	int value = 1;
 	setsockopt(probe_socket, SOL_SOCKET, SO_REUSEADDR,&value,sizeof(value));
 
@@ -124,7 +138,7 @@ int main(int argc, char **argv)
 
 	server_address.sin_family = AF_INET;
 	server_address.sin_port = htons(atoi(destination_port));
-	server_address.sin_addr.s_addr = inet_addr("192.168.86.249");
+	server_address.sin_addr.s_addr = inet_addr(settings.server_ip);
 
 	client_address.sin_family = AF_INET;
 
@@ -194,8 +208,8 @@ int main(int argc, char **argv)
 	
 	struct sockaddr_in post_probe_address;
 	post_probe_address.sin_family = AF_INET;
-	post_probe_address.sin_port = htons(preprobe_port);
-	post_probe_address.sin_addr.s_addr = inet_addr("192.168.86.249");
+	post_probe_address.sin_port = htons(atoi(settings.tcp_port));
+	post_probe_address.sin_addr.s_addr = inet_addr(settings.server_ip);
 
 	//check to see if there is compression or not in the program
 	if(postProbe_socket == -1){
