@@ -25,8 +25,7 @@
 #define TCP_HDRLEN 20
 
 typedef struct 
-{  
-     char address[256];  
+{   
      char source_port[256];  
      char destination_port[256]; 
      char tcp_port[256]; 
@@ -37,6 +36,7 @@ typedef struct
      char ttl[256];
      char head_port[256];
      char tail_port[256];
+	 char standalone_client_ip[256];
 }configurations;
 
 //get the information from a config file and parse it to a struct
@@ -45,19 +45,20 @@ configurations cJSON_to_struct(char* text, configurations settings){
     int i =0;
     json = cJSON_Parse(text);
 
-    item = cJSON_GetObjectItemCaseSensitive(json,"server_address");
-	if(item == NULL){
-		printf("Missing server IP.\n");
-		exit(1);
-	}
-	strcpy(settings.address,item->valuestring);
-
     item = cJSON_GetObjectItemCaseSensitive(json,"source_port");
 	if(item == NULL){
 		printf("Missing source port.\n");
 		exit(1);
 	}
 	strcpy(settings.source_port,item->valuestring);
+
+	item = cJSON_GetObjectItemCaseSensitive(json,"standalone_client_ip");
+	if(item == NULL){
+		printf("Missing standalone client port.\n");
+		exit(1);
+	}
+	strcpy(settings.standalone_client_ip,item->valuestring);
+
 
 	item = cJSON_GetObjectItemCaseSensitive(json,"TCP_port");
 	if(item == NULL){
@@ -340,7 +341,7 @@ int main(int argc, char **argv){
     int head_port = atoi(settings.head_port);
     int tail_port = atoi(settings.tail_port);
     char * server_ip = settings.server_ip;
-	char * client_ip = "192.168.68.112";
+	char * client_ip = settings.standalone_client_ip;
 
 	//Allocate memory for various arrays
 	src_mac = allocate_ustrmem(6);
